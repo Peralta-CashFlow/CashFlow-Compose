@@ -1,0 +1,87 @@
+services:
+  cash-flow-database:
+    image: mysql:8.4.5
+    container_name: cash-flow-database
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: cashflow-auth
+      MYSQL_USER: cashflow
+      MYSQL_PASSWORD: 123456
+    ports:
+      - "3306:3306"
+    volumes:
+      - cash-flow-db-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cash-flow-api-auth:
+    image: viniciusperalta/cashflow-api-auth:0.0.2
+    container_name: cash-flow-api-auth
+    depends_on:
+      cash-flow-database:
+        condition: service_healthy
+    restart: on-failure:1
+    environment:
+      DATABASE_CONNECTION_STRING: jdbc:mysql://cash-flow-database:3306/cashflow-auth?useSSL=false&allowPublicKeyRetrieval=true
+      DATABASE_USERNAME: cashflow
+      DATABASE_PASSWORD: 123456
+      SERVER_PORT: 8090
+      JWT_SECRET: 20e0204a8bf90a8e156d0453a5934416e86cc02b300e260419524d37312098b0
+      JWT_EXPIRATION: 3
+      APP_CROSS_ORIGIN: '*'
+    ports:
+      - "8090:8090"
+
+  cash-flow-prometheus:
+    image: prom/prometheus:v3.4.1
+    container_name: cash-flow-prometheus
+    depends_on:
+      - cash-flow-api-auth
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-data:/prometheus
+    restart: unless-stopped
+
+  cash-flow-loki:
+    image: grafana/loki:main-c167800
+    container_name: cash-flow-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    depends_on:
+      - cash-flow-api-auth
+
+  cash-flow-promtail:
+    image: grafana/promtail:main-c167800
+    container_name: cash-flow-promtail
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /etc/machine-id:/etc/machine-id:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yml:/etc/promtail/promtail-config.yml
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - cash-flow-loki
+
+  cash-flow-grafana:
+    image: grafana/grafana:12.0.2
+    container_name: cash-flow-grafana
+    depends_on:
+      - cash-flow-prometheus
+      - cash-flow-promtail
+    ports:
+      - "3300:3000"
+    volumes:
+      - cash-flow-grafana-data:/var/lib/grafana
+      - ../grafana/provisioning:/etc/grafana/provisioning
+      - ../grafana/provisioning/dashboards:/var/lib/grafana/dashboards
+    environment:
+      GF_SECURITY_ADMIN_USER: cashflow
+      GF_SECURITY_ADMIN_PASSWORD: 123456
+      GF_USERS_ALLOW_SIGN_UP: false
+
+volumes:
+  cash-flow-db-data:
+  cash-flow-grafana-data:

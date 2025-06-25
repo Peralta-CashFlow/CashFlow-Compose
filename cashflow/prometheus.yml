@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  - job_name: 'Cash Flow API Auth'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['cash-flow-api-auth:8090']
+        labels:
+          application: CashFlow-API-Auth

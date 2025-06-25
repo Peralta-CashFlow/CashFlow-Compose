@@ -1,0 +1,24 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://cash-flow-loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker-logs
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+    pipeline_stages:
+      - docker: {}
+    relabel_configs:
+      - source_labels: [__meta_docker_container_name]
+        regex: '/?cash-flow-api-auth'
+        action: keep
+      - source_labels: [ __meta_docker_container_name ]
+        regex: '^/?cash-flow-api-auth$'
+        replacement: 'CashFlow-API-Auth'
+        target_label: service
