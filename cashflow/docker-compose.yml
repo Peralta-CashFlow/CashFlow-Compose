@@ -18,6 +18,22 @@ services:
       timeout: 5s
       retries: 5
 
+  cash-flow-db-init:
+    image: mysql:8.4.5
+    container_name: cash-flow-db-init
+    depends_on:
+      cash-flow-database:
+        condition: service_healthy
+    volumes:
+      - ./docker/mysql/migrations:/migrations
+      - ./docker/mysql/init-db.sh:/init-db.sh
+    entrypoint: [ "/bin/sh", "/init-db.sh" ]
+    environment:
+      DB_HOST: cash-flow-database
+      DB_USER: root
+      DB_PASSWORD: root_password
+    restart: "no"
+
   cash-flow-api-auth:
     image: viniciusperalta/cashflow-api-auth:0.0.2
     container_name: cash-flow-api-auth

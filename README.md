@@ -58,6 +58,8 @@ You can access the database using the following credentials:
 - **User**: `cashflow`
 - **Password**: `123456`
 
+Databases are created automatically using a docker job that run the files inside `/docker/migrations` folder.
+
 Tables and data are automatically created using [Flyway](https://www.red-gate.com/products/flyway/community/) when the application starts.
 
 ## Grafana
